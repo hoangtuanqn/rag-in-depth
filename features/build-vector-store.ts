@@ -1,43 +1,31 @@
-import { FaissStore } from '@langchain/community/vectorstores/faiss';
+import { Chroma } from '@langchain/community/vectorstores/chroma';
 import { OpenAIEmbeddings } from '@langchain/openai';
 
-const normalize = (vec: number[]): number[] => {
-  const norm = Math.sqrt(vec.reduce((s, x) => s + x * x, 0));
-  if (norm === 0) return vec; // tránh chia cho 0
-  return vec.map((x) => x / norm);
-};
+// embedding chuẩn (KHÔNG normalize)
+const embeddings = new OpenAIEmbeddings({
+  apiKey: process.env.OPENAI_API_KEY,
+  batchSize: 512,
+  model: 'text-embedding-3-small',
+});
 
-const patchEmbeddings = (embeddings: OpenAIEmbeddings): OpenAIEmbeddings => {
-  const originalEmbedDocuments = embeddings.embedDocuments.bind(embeddings);
-  const originalEmbedQuery = embeddings.embedQuery.bind(embeddings);
+// main
+export const buildVectorStore = async (chunks?: any[]) => {
+  console.log(chunks);
 
-  // từ document lấy ra
-  embeddings.embedDocuments = async (texts: string[]) => {
-    const vectors = await originalEmbedDocuments(texts);
-    return vectors.map(normalize);
-  };
+  const vectorStore = new Chroma(embeddings, {
+    host: 'localhost',
+    port: 8000,
+    collectionName: 'rag-collection',
+  });
 
-  // người dùng search
-  embeddings.embedQuery = async (text: string) => {
-    const vector = await originalEmbedQuery(text);
-    return normalize(vector);
-  };
+  // chỉ index khi có data truyền vào
+  if (chunks && chunks.length > 0) {
+    console.log('📥 Indexing documents into Chroma...');
+    await vectorStore.addDocuments(chunks);
+    console.log('✅ Index done');
+  } else {
+    console.log('🔌 Connected to existing Chroma collection');
+  }
 
-  return embeddings;
-};
-
-// function cần sử dụng
-export const buildVectorStore = async (chunks: any[]) => {
-  const embeddings = patchEmbeddings(
-    new OpenAIEmbeddings({
-      apiKey: process.env.OPENAI_API_KEY,
-      batchSize: 512,
-      model: 'text-embedding-3-small',
-    }),
-  );
-
-  const vectorStore = await FaissStore.fromDocuments(chunks, embeddings);
-  await vectorStore.save('./vectorstore');
-  console.log('VectorStore saved');
   return vectorStore;
 };

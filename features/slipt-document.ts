@@ -9,11 +9,10 @@ export const splitDocument = async (docs: any[]) => {
   const chunks = await splitter.splitDocuments(docs);
 
   //  console.log(`Split into ${chunks.length} chunks`);
-  for (const chunk of chunks) {
-    console.log('----------------------');
-    console.log('Content:', chunk.pageContent);
-    // console.log("Metadata:", chunk.metadata);
-  }
+  // for (const chunk of chunks) {
+  //   console.log('----------------------');
+  //   console.log('Content:', chunk.pageContent);
+  // }
 
   return chunks;
 };
